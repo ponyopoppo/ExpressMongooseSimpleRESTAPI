@@ -1,5 +1,7 @@
 import express from 'express';
+
 import User from '../models/user.model';
+import { genHash } from '../helper/hash';
 
 const router = express.Router();
 
@@ -12,16 +14,15 @@ router.route('/')
       .catch(next);
   })
   // create
-  .post((req, res, next) => {
-    const user = new User({
-      username: req.body.username,
-      password: req.body.password,
-    });
-
-    user.save()
-      .then(savedUser => res.json(savedUser))
-      .catch(next);
-  });
+  .post((req, res, next) =>
+    genHash(req.body.password).then(hash => {
+      const user = new User({
+        username: req.body.username,
+        password: hash,
+      });
+      user.save().then(savedUser => res.json(savedUser)).catch(next);
+    }).catch(next)
+  );
 
 router.route('/:userId')
   // read

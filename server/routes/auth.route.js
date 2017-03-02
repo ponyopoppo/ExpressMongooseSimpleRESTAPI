@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 
 import config from '../../config/config';
 import authMiddle from '../helper/authMiddle';
+import { checkHash } from '../helper/hash';
+import User from '../models/user.model';
 
 const router = express.Router(); // eslint-disable-line new-cap
 
@@ -12,12 +14,18 @@ const user = {
 
 router.route('/login')
   .post((req, res, next) => {
-    if (req.body.username !== user.username || req.body.password !== user.password) {
-      return next("Auth error");
-    }
-    const token = jwt.sign({ user: user }, config.jwtSecret, { expiresIn: '24h' });
-    res.cookie('token', token);
-    return res.json({ token });
+    User.find({ username: req.body.username })
+      .exec()
+      .then(users => users[0])
+      .then(user => {
+        if (!user) return next("No user");
+        console.log("find", user);
+        console.log(req.body.password);
+        checkHash(req.body.password, user.password).then(() => {
+          const token = jwt.sign({ user: user }, config.jwtSecret, { expiresIn: '24h' });
+          return res.json({ token });
+        }).catch(next);
+      })
   });
 
 router.route('/loguot')
