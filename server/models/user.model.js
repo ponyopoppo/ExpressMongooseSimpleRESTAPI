@@ -10,10 +10,14 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  history: {
+    type: Array,
+    default: [],
+  },
   createdAt: {
     type: Date,
     default: Date.now,
-  },
+  }
 });
 
 UserSchema.statics = {

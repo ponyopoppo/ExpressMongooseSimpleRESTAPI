@@ -8,34 +8,26 @@ import User from '../models/user.model';
 
 const router = express.Router(); // eslint-disable-line new-cap
 
-const user = {
-  username: "u", password: "p"
-}
-
 router.route('/login')
   .post((req, res, next) => {
     User.find({ username: req.body.username })
       .exec()
       .then(users => users[0])
       .then(user => {
-        if (!user) return next("No user");
+        if (!user) return res.status(401).json({ error: 'username' });
         checkHash(req.body.password, user.password).then(() => {
-          const token = jwt.sign({ user: user }, config.jwtSecret, { expiresIn: '24h' });
+          const token = jwt.sign({
+            id: user._id,
+            username: user.username
+          }, config.jwtSecret);
           return res.json({ token });
-        }).catch(next);
+        }).catch(() => res.status(401).json({ error: 'password' }));
       })
   });
 
-router.route('/loguot')
-  .post((req, res, next) => {
-  });
-
-router.route('/random-number')
-  .get(authMiddle, (req, res) => {
-    return res.json({
-      user: req.user,
-      num: Math.random() * 100
-    });
+router.route('/status')
+  .get(authMiddle, (req, res, next) => {
+    return res.json(req.user);
   });
 
 export default router;

@@ -2,12 +2,13 @@ import express from 'express';
 
 import User from '../models/user.model';
 import { genHash } from '../helper/hash';
+import authMiddle from '../helper/authMiddle';
 
 const router = express.Router();
 
 router.route('/')
   // get list
-  .get((req, res, next) => {
+  .get(authMiddle, (req, res, next) => {
     const { limit = 50, skip = 0 } = req.query;
     User.list({ limit, skip })
       .then(users => res.json(users))
@@ -26,30 +27,41 @@ router.route('/')
 
 router.route('/:userId')
   // read
-  .get((req, res) => res.json(req.user))
+  .get(authMiddle, (req, res, next) => {
+    if (!req.user) return next("Auth error");
+    User.get(req.params.userId).then(user => {
+      if (user.id !== req.user.id && !req.user.admin) return next("Auth error");
+      res.json(user);
+    })
+  })
   // update
-  .put((req, res, next) => {
-    const user = req.user;
-    ["username", "password"].forEach(key => user[key] = req.body[key]);
-    user.save()
-      .then(savedUser => res.json(savedUser))
-      .catch(next);
+  .put(authMiddle, (req, res, next) => {
+    if (!req.user) return next("Auth error");
+    User.get(req.params.userId).then(user => {
+      if (user.id !== req.user.id && !req.user.admin) return next("Auth error");
+
+      [].forEach(key => user[key] = req.body[key]);
+      if (req.body.password) {
+        genHash(req.body.password).then(hash => {
+          user.password = hash;
+          user.save().then(savedUser => res.json(savedUser)).catch(next);
+        }).catch(next)
+      } else {
+        user.save().then(savedUser => res.json(savedUser)).catch(next);
+      }
+    })
   })
   // delete
-  .delete((req, res, next) => {
-    const user = req.user;
-    user.remove()
-      .then(deletedUser => res.json(deletedUser))
-      .catch(e => next(e));
+  .delete(authMiddle, (req, res, next) => {
+    if (!req.user) return next("Auth error");
+    User.get(req.params.userId).then(user => {
+      if (user.id !== req.user.id && !req.user.admin) return next("Auth error");
+
+      user.remove()
+        .then(deletedUser => res.json(deletedUser))
+        .catch(e => next(e));
+    });
   });
 
-router.param('userId', (req, res, next, userId) => {
-  User.get(userId)
-    .then(user => {
-      req.user = user;
-      return next();
-    })
-    .catch(next);
-});
 
 export default router;
