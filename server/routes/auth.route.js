@@ -19,8 +19,6 @@ router.route('/login')
       .then(users => users[0])
       .then(user => {
         if (!user) return next("No user");
-        console.log("find", user);
-        console.log(req.body.password);
         checkHash(req.body.password, user.password).then(() => {
           const token = jwt.sign({ user: user }, config.jwtSecret, { expiresIn: '24h' });
           return res.json({ token });
